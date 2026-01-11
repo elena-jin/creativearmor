@@ -12,12 +12,10 @@ export const BiometricScanner: React.FC<BiometricScannerProps> = ({ onComplete }
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
-  const [faceDetected, setFaceDetected] = useState(false);
   const webcamRef = useRef<Webcam>(null);
 
   const startScan = useCallback(() => {
     setScanning(true);
-    setFaceDetected(false);
     let currentLog = 0;
     
     // Progress simulation
@@ -30,11 +28,6 @@ export const BiometricScanner: React.FC<BiometricScannerProps> = ({ onComplete }
         return prev + 1;
       });
     }, 30);
-
-    // Face detection simulation (after 1 second)
-    setTimeout(() => {
-      setFaceDetected(true);
-    }, 1000);
 
     // Logs simulation
     const logInterval = setInterval(() => {
@@ -61,14 +54,8 @@ export const BiometricScanner: React.FC<BiometricScannerProps> = ({ onComplete }
           ref={webcamRef}
           audio={false}
           screenshotFormat="image/jpeg"
-          screenshotQuality={0.92}
           className="w-full h-full object-cover opacity-80 mix-blend-screen"
-          mirrored={true}
-          disablePictureInPicture={true}
-          forceScreenshotSourceSize={false}
-          imageSmoothing={true}
-          onUserMedia={() => {}}
-          onUserMediaError={() => {}}
+          mirrored
         />
         {/* Dark overlay for cinematic look */}
         <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-obsidian opacity-60"></div>
@@ -89,42 +76,13 @@ export const BiometricScanner: React.FC<BiometricScannerProps> = ({ onComplete }
           {/* Inner Marks */}
           <div className="absolute inset-2 border border-dashed border-white/10 rounded-full"></div>
 
-          {/* Face Bounding Box - Rectangular box that appears when face is detected */}
-          <AnimatePresence>
-            {faceDetected && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.3 }}
-                className="absolute w-48 h-64 border-2 rounded-lg"
-                style={{
-                  borderColor: faceDetected ? '#10b981' : '#6366f1',
-                  boxShadow: faceDetected ? '0 0 20px rgba(16, 185, 129, 0.5)' : '0 0 10px rgba(99, 102, 241, 0.3)',
-                }}
-              >
-                {/* Genomic Verification Indicator */}
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 bg-emerald-500/20 border border-emerald-500/50 rounded text-xs text-emerald-400 font-mono whitespace-nowrap">
-                  FACE DETECTED
-                </div>
-                {/* Corner indicators */}
-                <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-emerald-400 rounded-tl"></div>
-                <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-emerald-400 rounded-tr"></div>
-                <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-emerald-400 rounded-bl"></div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-emerald-400 rounded-br"></div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          {/* Initial Face Bounding Box (Corners) - shown before detection */}
-          {!faceDetected && (
-            <div className="absolute w-48 h-64">
-              <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-indigo-400/50 rounded-tl-lg"></div>
-              <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-indigo-400/50 rounded-tr-lg"></div>
-              <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-indigo-400/50 rounded-bl-lg"></div>
-              <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-indigo-400/50 rounded-br-lg"></div>
-            </div>
-          )}
+          {/* Face Bounding Box (Corners) */}
+          <div className="absolute w-48 h-48">
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-indigo-400 rounded-tl-lg"></div>
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-indigo-400 rounded-tr-lg"></div>
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-indigo-400 rounded-bl-lg"></div>
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-indigo-400 rounded-br-lg"></div>
+          </div>
 
           {!scanning && (
             <motion.div 

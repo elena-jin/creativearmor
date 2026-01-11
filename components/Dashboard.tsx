@@ -1,22 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlassCard } from './GlassCard';
-import { IdentityRecord, Alert } from '../types';
-import { ShieldCheck, Mic, Activity, AlertTriangle, ChevronRight, Fingerprint, Lock, BarChart3, TrendingUp, Shield } from 'lucide-react';
+import { IdentityRecord, Alert, ScanEvent } from '../types';
+import { ShieldCheck, Activity, AlertTriangle, ChevronRight, Fingerprint, Lock, Shield, Cloud, Image as ImageIcon, ExternalLink, ShieldAlert } from 'lucide-react';
 import { RECENT_ALERTS } from '../constants';
 import { getAnalyticsMetrics } from '../services/snowflakeService';
 import { getScanHistory } from '../services/solanaService';
-import { ScanEvent } from '../types';
 import { getCurrentWallet, WalletConnection } from '../solana/connectWallet';
 import { ShieldImageModal } from './ShieldImageModal';
+import { getDeepfakeAlerts } from '../services/googleDeepfakeService';
 
 interface DashboardProps {
   identity: IdentityRecord;
   onAlertClick: (alert: Alert) => void;
-  onNewAlert?: (alert: Alert) => void;
   recentAlerts?: Alert[];
+  setRecentAlerts?: (alerts: Alert[] | ((prev: Alert[]) => Alert[])) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, onNewAlert, recentAlerts: propsRecentAlerts }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  identity, 
+  onAlertClick, 
+  recentAlerts: propsRecentAlerts,
+  setRecentAlerts: setPropsRecentAlerts 
+}) => {
   const [analytics, setAnalytics] = useState<any>(null);
   const [scanHistory, setScanHistory] = useState<ScanEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,62 +38,131 @@ export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, on
     }
   }, [propsRecentAlerts]);
 
+  const getTimeAgo = (date: Date): string => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return `${seconds} seconds ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} ${minutes === 1 ? 'min' : 'mins'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const [metrics, history, currentWallet] = await Promise.all([
+      const [metrics, history, currentWallet, googleAlerts] = await Promise.all([
         getAnalyticsMetrics(),
         getScanHistory(5),
-        getCurrentWallet()
+        getCurrentWallet(),
+        getDeepfakeAlerts()
       ]);
       setAnalytics(metrics);
       setScanHistory(history);
       setWallet(currentWallet);
+      
+      // Convert Google alerts to Alert format and merge with existing alerts
+      const convertedAlerts: Alert[] = googleAlerts.map((detection, idx) => ({
+        id: `GOOGLE-${Date.now()}-${idx}`,
+        platform: detection.platform as any,
+        source: 'Google Deepfake Detection',
+        detectedLocation: detection.detectedLocation,
+        thumbnailUrl: detection.imageUrl,
+        detectedAt: getTimeAgo(new Date(detection.timestamp)),
+        confidence: detection.confidence,
+        status: 'active' as const,
+      }));
+      
+      // Merge with existing alerts, avoiding duplicates
+      setRecentAlerts(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newAlerts = convertedAlerts.filter(a => !existingIds.has(a.id));
+        if (newAlerts.length > 0) {
+          const updated = [...newAlerts, ...prev];
+          if (setPropsRecentAlerts) {
+            setPropsRecentAlerts(updated);
+          }
+          return updated;
+        }
+        return prev;
+      });
+      
       setLoading(false);
     };
     loadData();
-  }, []);
+    
+    // Poll for new alerts every 30 seconds
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, [setPropsRecentAlerts]);
 
-  const handleShieldImage = () => {
-    // Create file input
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        setSelectedImage(file);
-        setShowShieldModal(true);
-      }
-    };
-    input.click();
+  const handleShieldImage = (fromLibrary: boolean = false) => {
+    if (fromLibrary) {
+      // For iCloud/Photo Library integration
+      // In production, this would use the File System Access API or similar
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.setAttribute('webkitdirectory', 'false');
+      input.multiple = false;
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          setSelectedImage(file);
+          setShowShieldModal(true);
+        }
+      };
+      input.click();
+    } else {
+      // Regular file upload
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          setSelectedImage(file);
+          setShowShieldModal(true);
+        }
+      };
+      input.click();
+    }
   };
 
   const handleShieldComplete = (txHash: string, imageFile?: File) => {
     setLastShieldedTx(txHash);
     setShowShieldModal(false);
-    // Reload wallet connection
-    getCurrentWallet().then(setWallet);
     
-    // Create alert for unverified image
+    // Create a preview URL for the image
+    let imageUrl = '';
     if (imageFile) {
-      const imageUrl = URL.createObjectURL(imageFile);
-      const newAlert: Alert = {
-        id: `AL-${Date.now()}`,
-        platform: 'TikTok' as const,
-        thumbnailUrl: imageUrl,
-        detectedAt: 'Just now',
-        confidence: 0, // Unverified
-        status: 'active',
-      };
-      
-      // Add to recent alerts (at the beginning)
-      setRecentAlerts(prev => [newAlert, ...prev]);
-      
-      // Notify parent component
-      onNewAlert?.(newAlert);
+      imageUrl = URL.createObjectURL(imageFile);
+    }
+    
+    // Add new unverified alert to recent alerts
+    const newAlert: Alert = {
+      id: `AL-${Date.now()}`,
+      platform: 'Upload' as any,
+      source: 'Upload',
+      thumbnailUrl: imageUrl || 'https://via.placeholder.com/200/300?text=Uploaded+Image',
+      detectedAt: 'Just now',
+      confidence: 0, // 0 means unverified
+      status: 'active',
+    };
+    
+    const updatedAlerts = [newAlert, ...recentAlerts];
+    setRecentAlerts(updatedAlerts);
+    
+    // Also update parent if setter provided
+    if (setPropsRecentAlerts) {
+      setPropsRecentAlerts(updatedAlerts);
     }
   };
+
+  const walletAddress = wallet?.publicKey || 'Not connected';
+  const walletConnected = wallet?.connected || false;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl mx-auto pb-12">
       
@@ -129,62 +203,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, on
         </div>
       </GlassCard>
 
-      {/* 2. Solana Proof Layer */}
+      {/* 2. Analytics Card (Snowflake) */}
       <GlassCard className="col-span-1" delay={0.2}>
         <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-light text-white">Human Origin Registry</h3>
-            <Shield size={18} className="text-purple-400" />
+            <h3 className="text-lg font-light text-white">Analytics</h3>
+            <Activity size={18} className="text-indigo-400" />
         </div>
-        
-        {wallet?.connected ? (
+        {loading ? (
+          <div className="text-sm text-slate-400">Loading...</div>
+        ) : analytics ? (
           <div className="space-y-4">
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-xs text-slate-400 mb-1">Wallet Address</div>
-              <div className="font-mono text-xs text-white truncate">
-                {wallet.publicKey?.toString().substring(0, 8)}...{wallet.publicKey?.toString().slice(-6)}
-              </div>
+            <div>
+              <div className="text-xs text-slate-400 mb-1">Total Scans</div>
+              <div className="text-2xl font-light text-white">{analytics.totalScans.toLocaleString()}</div>
             </div>
-            
-            {lastShieldedTx && (
-              <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-                <div className="text-xs text-slate-400 mb-1">Last Shielded</div>
-                <div className="font-mono text-xs text-white truncate">
-                  {lastShieldedTx.substring(0, 12)}...
-                </div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {new Date().toLocaleTimeString()}
-                </div>
-              </div>
-            )}
-            
-            <button
-              onClick={handleShieldImage}
-              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white text-sm font-semibold rounded-lg hover:from-purple-500 hover:to-purple-400 transition-all flex items-center justify-center gap-2"
-            >
-              <Shield size={16} />
-              Shield Image on Solana
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
-              <div className="text-xs text-slate-400 mb-2">Connect wallet to register images</div>
-              <div className="text-xs text-slate-500">Proof of Human Origin</div>
+            <div>
+              <div className="text-xs text-slate-400 mb-1">AI Matches</div>
+              <div className="text-2xl font-light text-white">{analytics.aiGeneratedMatches}</div>
             </div>
-            <button
-              onClick={handleShieldImage}
-              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white text-sm font-semibold rounded-lg hover:from-purple-500 hover:to-purple-400 transition-all flex items-center justify-center gap-2"
-            >
-              <Shield size={16} />
-              Shield Image on Solana
-            </button>
+            <div>
+              <div className="text-xs text-slate-400 mb-1">Most Common</div>
+              <div className="text-sm text-white">{analytics.mostCommonCategory}</div>
+            </div>
           </div>
-        )}
-        
-        <div className="mt-4 pt-4 border-t border-white/5 text-center">
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Solana Proof Layer</div>
-          <div className="text-xs text-slate-400">Decentralized Identity Timestamping</div>
-        </div>
+        ) : null}
       </GlassCard>
 
       {/* 3. Recent Alerts (Actionable) */}
@@ -194,7 +236,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, on
                 <AlertTriangle size={18} className="text-amber-400" />
                 Recent Alerts
             </h3>
-            <span className="text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/20">1 Action Required</span>
+            <span className="text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/20">
+              {recentAlerts.filter(a => a.status === 'active').length} Action Required
+            </span>
         </div>
 
         <div className="space-y-3">
@@ -203,19 +247,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, on
                     key={alert.id}
                     onClick={() => alert.status === 'active' && onAlertClick(alert)}
                     className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${
-                        alert.status === 'active' 
-                        ? alert.confidence === 0
-                          ? 'bg-amber-950/20 border-amber-500/20 hover:bg-amber-900/20'
-                          : 'bg-red-950/20 border-red-500/20 hover:bg-red-900/20'
+                        alert.confidence === 0 // Unverified image styling
+                        ? 'bg-amber-950/20 border-amber-500/20 hover:bg-amber-900/20'
+                        : alert.status === 'active' 
+                        ? 'bg-red-950/20 border-red-500/20 hover:bg-red-900/20' 
                         : 'bg-white/5 border-white/5 opacity-60'
                     }`}
                 >
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-16 rounded overflow-hidden relative">
                              <img src={alert.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
-                             {alert.status === 'active' && (
-                               <div className={`absolute inset-0 ${alert.confidence === 0 ? 'bg-amber-500/20' : 'bg-red-500/20'}`}></div>
-                             )}
+                             {alert.status === 'active' && <div className="absolute inset-0 bg-red-500/20"></div>}
                         </div>
                         <div>
                             <div className="text-sm text-white font-medium flex items-center gap-2">
@@ -227,16 +269,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, on
                             <div className="text-xs text-slate-400 mt-0.5">
                               {alert.confidence === 0 
                                 ? `Uploaded ${alert.detectedAt} • Unverified`
-                                : `Detected ${alert.detectedAt} • ${alert.confidence}% Confidence`}
+                                : `${alert.source} • ${alert.detectedAt} • ${alert.confidence}% Confidence`}
                             </div>
+                            {alert.detectedLocation && (
+                              <a 
+                                href={alert.detectedLocation} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1"
+                              >
+                                <ExternalLink size={10} />
+                                View location
+                              </a>
+                            )}
                         </div>
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        {alert.status === 'active' ? (
-                             <span className={`text-xs font-semibold ${alert.confidence === 0 ? 'text-amber-400 group-hover:text-amber-300' : 'text-red-400 group-hover:text-red-300'}`}>
-                               {alert.confidence === 0 ? 'UNVERIFIED' : 'ACTIVATE DEFENSE'}
-                             </span>
+                        {alert.confidence === 0 ? (
+                             <span className="text-xs font-semibold text-amber-400 group-hover:text-amber-300">UNVERIFIED</span>
+                        ) : alert.status === 'active' ? (
+                             <span className="text-xs font-semibold text-red-400 group-hover:text-red-300">ACTIVATE DEFENSE</span>
                         ) : (
                              <span className="text-xs text-slate-500">RESOLVED</span>
                         )}
@@ -247,96 +301,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ identity, onAlertClick, on
         </div>
       </GlassCard>
 
-      {/* 4. Analytics (Snowflake) */}
-      <GlassCard className="col-span-1 md:col-span-2" delay={0.4}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-light text-white flex items-center gap-2">
-            <BarChart3 size={18} className="text-blue-400" />
-            Analytics
-          </h3>
-          <div className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/20">
-            Analytics
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : analytics && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-xs text-slate-400 mb-1">Total Scans</div>
-              <div className="text-2xl font-light text-white">{analytics.totalScans}</div>
-              <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                <TrendingUp size={12} />
-                +12% this month
-              </div>
-            </div>
-            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-xs text-slate-400 mb-1">AI Matches</div>
-              <div className="text-2xl font-light text-white">{analytics.aiGeneratedMatches}</div>
-              <div className="text-xs text-red-400 mt-1">
-                {((analytics.aiGeneratedMatches / analytics.totalScans) * 100).toFixed(1)}% rate
-              </div>
-            </div>
-            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-xs text-slate-400 mb-1">Top Category</div>
-              <div className="text-2xl font-light text-white">{analytics.mostCommonCategory}</div>
-              <div className="text-xs text-slate-500 mt-1">Most detected</div>
-            </div>
-            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
-              <div className="text-xs text-slate-400 mb-1">Avg Confidence</div>
-              <div className="text-2xl font-light text-white">{analytics.averageConfidence.toFixed(1)}%</div>
-              <div className="text-xs text-slate-500 mt-1">Detection accuracy</div>
-            </div>
-          </div>
-        )}
-      </GlassCard>
-
-      {/* 5. Scan History (Solana) */}
-      <GlassCard className="col-span-1" delay={0.5}>
+      {/* 4. Human Origin Registry (Solana) */}
+      <GlassCard className="col-span-1" delay={0.4}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-light text-white">Scan History</h3>
-          <div className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/20">
-            Solana
-          </div>
+          <h3 className="text-lg font-light text-white">Human Origin Registry</h3>
+          <Fingerprint size={18} className="text-purple-400" />
         </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        {walletConnected ? (
+          <div className="space-y-2">
+            <div className="text-xs text-slate-400">Wallet: <span className="font-mono text-white truncate">{walletAddress}</span></div>
+            <div className="text-xs text-slate-400">Last Shielded: <span className="font-mono text-white">{lastShieldedTx ? `${lastShieldedTx.substring(0, 6)}...${lastShieldedTx.substring(lastShieldedTx.length - 6)}` : 'N/A'}</span></div>
+            <div className="space-y-2 mt-4">
+              <button
+                onClick={() => handleShieldImage(false)}
+                className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Shield size={16} /> Shield Image on Solana
+              </button>
+              <button
+                onClick={() => handleShieldImage(true)}
+                className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Cloud size={16} /> Sync from iCloud/Photos
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            {scanHistory.slice(0, 5).map((event) => (
-              <div key={event.scanId} className="flex items-center gap-3 text-xs">
-                <div className={`w-2 h-2 rounded-full ${event.detectedIncident ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
-                <div className="flex-1">
-                  <div className="text-slate-300">{event.scanId}</div>
-                  <div className="text-slate-600 font-mono">
-                    {new Date(event.timestamp).toLocaleTimeString()}
-                  </div>
-                </div>
-                <div className="text-slate-500">
-                  {event.confidenceScore.toFixed(0)}%
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-4">
+            <p className="text-sm text-slate-400 mb-4">Connect wallet to register images</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => handleShieldImage(false)}
+                className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Shield size={16} /> Shield Image on Solana
+              </button>
+              <button
+                onClick={() => handleShieldImage(true)}
+                className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Cloud size={16} /> Sync from iCloud/Photos
+              </button>
+            </div>
           </div>
         )}
         <div className="mt-6 pt-4 border-t border-white/5 text-center">
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Powered by</div>
-          <div className="text-sm font-semibold text-slate-300">SOLANA</div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Solana Proof Layer</div>
+          <div className="text-sm font-semibold text-slate-300">Decentralized Identity Timestamping</div>
         </div>
       </GlassCard>
 
+      {/* Shield Image Modal */}
       <ShieldImageModal
         isOpen={showShieldModal}
         onClose={() => {
           setShowShieldModal(false);
           setSelectedImage(null);
         }}
-        onComplete={(txHash) => handleShieldComplete(txHash, selectedImage || undefined)}
+        onComplete={handleShieldComplete}
         imageFile={selectedImage || undefined}
       />
     </div>

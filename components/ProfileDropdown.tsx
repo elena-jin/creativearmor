@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Settings, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Settings, LogOut, ChevronDown } from 'lucide-react';
 
 interface ProfileDropdownProps {
-  onSettings?: () => void;
-  onLogout?: () => void;
+  onNavigate: (view: string) => void;
+  onLogout: () => void;
 }
 
-export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onSettings, onLogout }) => {
+export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigate, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -18,61 +18,54 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onSettings, on
       }
     };
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-700 border border-white/10 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 hover:scale-105 transition-transform cursor-pointer"
       >
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-white/10 flex items-center justify-center text-white text-xs font-semibold">
-          P
-        </div>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm font-light">E</span>
       </button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl border border-white/10 overflow-hidden z-50"
+            className="absolute right-0 top-12 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
           >
             <div className="p-2">
-              <div className="px-3 py-2 text-xs text-slate-400 mb-1">Signed in as</div>
-              <div className="px-3 py-1 text-sm text-white font-medium">Elena</div>
-              <div className="my-2 border-t border-white/10"></div>
+              <div className="px-3 py-2 text-sm text-slate-300 border-b border-white/5 mb-1">
+                <div className="font-medium text-white">Elena</div>
+                <div className="text-xs text-slate-500">elena@example.com</div>
+              </div>
               
               <button
                 onClick={() => {
-                  onSettings?.();
+                  onNavigate('settings');
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5 rounded-lg flex items-center gap-2 transition-colors"
               >
                 <Settings size={16} />
-                <span>Settings</span>
+                Settings
               </button>
-
+              
               <button
                 onClick={() => {
-                  onLogout?.();
+                  onLogout();
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors mt-1"
+                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-lg flex items-center gap-2 transition-colors"
               >
                 <LogOut size={16} />
-                <span>Logout</span>
+                Logout
               </button>
             </div>
           </motion.div>
@@ -81,4 +74,3 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onSettings, on
     </div>
   );
 };
-

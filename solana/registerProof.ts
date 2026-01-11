@@ -1,8 +1,5 @@
-// Register Proof-of-Human Origin on Solana blockchain
-// Uses Memo Program to store proof data on-chain
-
-import { Connection, Transaction, SystemProgram, PublicKey, Keypair } from '@solana/web3.js';
-import { getSolanaConnection } from './connectWallet';
+import { Connection, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
+import { connectWallet, getSolanaConnection } from "./connectWallet";
 
 export interface ProofData {
   faceHash: string;
@@ -14,14 +11,12 @@ export interface ProofData {
 
 /**
  * Generate face hash from face landmarks or embeddings
- * In production, this would use face recognition library
  * For demo: Uses hardcoded hash for instant performance
  * 
  * NOTE: When uploading new images, this returns a DIFFERENT hash that will fail verification
- * This simulates an unverified image that doesn't match the original registered proof
  */
 export const generateFaceHash = async (imageData: string | Blob | File): Promise<string> => {
-  // Check if this is a new upload (File/Blob) vs existing alert (string URL)
+  // Check if this is a new upload (File or Blob)
   const isNewUpload = imageData instanceof File || imageData instanceof Blob;
   
   if (isNewUpload) {
@@ -41,7 +36,7 @@ export const generateFaceHash = async (imageData: string | Blob | File): Promise
  * NOTE: When uploading new images, this returns a DIFFERENT hash that will fail verification
  */
 export const generateImageHash = async (imageData: string | Blob | File): Promise<string> => {
-  // Check if this is a new upload (File/Blob) vs existing alert (string URL)
+  // Check if this is a new upload (File or Blob)
   const isNewUpload = imageData instanceof File || imageData instanceof Blob;
   
   if (isNewUpload) {
@@ -66,7 +61,6 @@ export const generateWatermarkHash = async (imageData: string | Blob | File): Pr
 
 /**
  * Register proof on Solana using Memo Program
- * Memo Program allows storing arbitrary data on-chain
  */
 export const registerProof = async (
   imageFile: File | Blob,
@@ -80,7 +74,6 @@ export const registerProof = async (
     generateWatermarkHash(imageFile),
   ]);
 
-  // Create proof data
   const proofData: ProofData = {
     faceHash,
     imageHash,
@@ -106,45 +99,29 @@ export const registerProof = async (
   }
 
   try {
-    // Import Memo Program instruction builder
-    // Memo Program: MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr
-    const memoProgramId = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
-    
-    // Create transaction with memo instruction
-    // Memo instruction format: [programId, signer, memo data]
+    // Use Memo Program for lightweight on-chain storage
+    // In production, you might use a custom program or account data
     const transaction = new Transaction().add({
-      keys: [{ pubkey: walletPublicKey, isSigner: true, isWritable: false }],
-      programId: memoProgramId,
-      data: Buffer.from(memoText, 'utf-8'),
+      keys: [],
+      programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+      data: Buffer.from(memoText, "utf-8"),
     });
 
-    // Get recent blockhash
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = await connection.getRecentBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPublicKey;
 
-    // Sign transaction with wallet
-    if (!window.solana?.signTransaction) {
-      throw new Error('Wallet does not support signing transactions');
-    }
-
-    const signedTransaction = await window.solana.signTransaction(transaction);
-
-    // Send transaction
-    const txHash = await connection.sendRawTransaction(signedTransaction.serialize(), {
-      skipPreflight: false,
-    });
-
-    // Confirm transaction
-    await connection.confirmTransaction(txHash, 'confirmed');
+    // Sign and send transaction
+    const signed = await window.solana!.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signed.serialize());
+    await connection.confirmTransaction(signature, "confirmed");
 
     return {
-      txHash,
+      txHash: signature,
       proofData,
     };
   } catch (error) {
-    console.error('Error registering proof on Solana:', error);
+    console.error("Error registering proof:", error);
     throw error;
   }
 };
-

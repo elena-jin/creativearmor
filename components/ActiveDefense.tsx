@@ -3,9 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from './GlassCard';
 import { Alert, IdentityRecord } from '../types';
 import { generateDMCANotice } from '../services/geminiService';
-import { ShieldAlert, FileText, CheckCircle, Copy, ExternalLink, XCircle, Share2, Activity } from 'lucide-react';
-import { verifyProof, generateInauthenticityCertificate, VerifiedProof } from '../solana/verifyProof';
-import { generateFaceHash, generateImageHash } from '../solana/registerProof';
+import { ShieldAlert, FileText, CheckCircle, Copy, ExternalLink, XCircle, Share2, Activity, AlertCircle } from 'lucide-react';
+import { verifyProof } from '../solana/verifyProof';
 
 interface ActiveDefenseProps {
   alert: Alert;
@@ -18,91 +17,74 @@ export const ActiveDefense: React.FC<ActiveDefenseProps> = ({ alert, identity, o
   const [dmcaText, setDmcaText] = useState("");
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [solanaVerification, setSolanaVerification] = useState<VerifiedProof | null>(null);
   const [verifyingSolana, setVerifyingSolana] = useState(false);
-  const [certificate, setCertificate] = useState<any>(null);
+  const [solanaVerification, setSolanaVerification] = useState<any>(null);
+  const isUnverified = alert.confidence === 0;
 
-  // Verify against Solana on component mount
   useEffect(() => {
-    const verifyAgainstSolana = async () => {
-      setVerifyingSolana(true);
-      try {
-        // Use hardcoded hashes for instant verification (demo)
-        // For deepfake alerts: Use original faceHash but different imageHash to show mismatch
-        // For unverified uploads: They already have different hashes
-        const isUnverified = alert.confidence === 0;
-        
-        if (isUnverified) {
-          // Unverified uploads: Use the new upload hash (will fail verification - no proof found)
-          const uploadFaceHash = 'x9k2m5n8p1q4r7s0t3u6v9w2x5y8z1a4b7c0d3e6f9g2h5i8j1k4l7m0n3o6p9';
-          const uploadImageHash = 'y0l3m6n9p2q5r8s1t4u7v0w3x6y9z2a5b8c1d4e7f0g3h6i9j2k5l8m1n4o7p0';
-          
-          const verified = await verifyProof(uploadFaceHash, uploadImageHash);
-          // If null (no proof found), show as unverified
-          if (!verified) {
-            setSolanaVerification({
-              faceHash: uploadFaceHash,
-              imageHash: uploadImageHash,
-              watermarkHash: '',
-              wallet: '',
-              timestamp: '',
-              txHash: '',
-              verified: false,
-            });
-          } else {
-            setSolanaVerification(verified);
-          }
-        } else {
-          // Deepfake alerts: Original faceHash but different imageHash
-          const originalFaceHash = 'a3f5b8c2d9e1f4a7b6c8d2e5f9a1b4c7d8e2f5a9b3c6d8e1f4a7b2c5d9e3f6a8';
-          const detectedImageHash = 'different_hash_for_detected_image_b7e2c9d4f1a6b8c3d5e7f2a9b4c6d8';
-          
-          const verified = await verifyProof(originalFaceHash, detectedImageHash);
-          setSolanaVerification(verified);
-          
-          // If faceHash exists but imageHash doesn't match, generate certificate
-          if (verified && !verified.verified && verified.mismatch) {
-            const cert = generateInauthenticityCertificate(verified, detectedImageHash);
-            setCertificate(cert);
-          }
-        }
-      } catch (error) {
-        console.error('Error verifying on Solana:', error);
-      } finally {
-        setVerifyingSolana(false);
-      }
-    };
-    
-    verifyAgainstSolana();
-  }, [alert]);
+    if (isUnverified) {
+      verifyAgainstSolana();
+    }
+  }, [alert.id]);
+
+  const verifyAgainstSolana = async () => {
+    setVerifyingSolana(true);
+    try {
+      // Use hardcoded hashes for unverified uploads
+      const uploadFaceHash = 'x9k2m5n8p1q4r7s0t3u6v9w2x5y8z1a4b7c0d3e6f9g2h5i8j1k4l7m0n3o6p9';
+      const uploadImageHash = 'y0l3m6n9p2q5r8s1t4u7v0w3x6y9z2a5b8c1d4e7f0g3h6i9j2k5l8m1n4o7p0';
+      
+      const verified = await verifyProof(uploadFaceHash, uploadImageHash);
+      setSolanaVerification(verified);
+    } catch (error) {
+      console.error('Error verifying on Solana:', error);
+    } finally {
+      setVerifyingSolana(false);
+    }
+  };
 
   // Step 1: Verification Logic
   const renderVerification = () => (
     <div className="space-y-6">
       <div className="flex items-center gap-4 mb-6">
-        <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-red-400">
-          <ShieldAlert size={24} />
+        <div className={`p-3 ${isUnverified ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-red-500/10 rounded-xl border border-red-500/20 text-red-400'}`}>
+          {isUnverified ? <AlertCircle size={24} /> : <ShieldAlert size={24} />}
         </div>
         <div>
-          <h3 className="text-xl font-light text-white">Deepfake Verification</h3>
+          <h3 className="text-xl font-light text-white">{isUnverified ? 'Image Verification' : 'Deepfake Verification'}</h3>
           <p className="text-sm text-slate-400">Comparing content fingerprint against Trusted Identity Ledger</p>
+          {alert.detectedLocation && (
+            <a 
+              href={alert.detectedLocation} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1"
+            >
+              <ExternalLink size={12} />
+              Detected at: {alert.detectedLocation.substring(0, 50)}...
+            </a>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {/* The Fake */}
-        <div className="p-4 rounded-xl border border-red-500/20 bg-red-950/10 relative overflow-hidden group">
-          <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">DETECTED FAKE</div>
-          <img src={alert.thumbnailUrl} alt="Deepfake" className="w-full h-32 object-cover rounded-lg opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500" />
-          <div className="mt-3 space-y-1">
-             <div className="text-xs text-red-400 font-mono">Fingerprint: 0x9f...a2</div>
-             <div className="text-xs text-red-400 font-mono font-bold">MATCH: FAILED</div>
+        {/* The Uploaded/Detected Image */}
+        <div className={`p-4 rounded-xl border ${isUnverified ? 'border-amber-500/20 bg-amber-950/10' : 'border-red-500/20 bg-red-950/10'} relative overflow-hidden group`}>
+          <div className={`absolute top-2 right-2 ${isUnverified ? 'bg-amber-500' : 'bg-red-500'} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>
+            {isUnverified ? 'UNVERIFIED' : 'DETECTED FAKE'}
+          </div>
+          <img src={alert.thumbnailUrl} alt={isUnverified ? 'Uploaded Image' : 'Deepfake'} className="w-full h-32 object-cover rounded-lg opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500" />
+          <div className={`mt-3 space-y-1 ${isUnverified ? 'text-amber-400' : 'text-red-400'}`}>
+             <div className={`text-xs font-mono ${isUnverified ? 'text-amber-400' : 'text-red-400'}`}>Fingerprint: {isUnverified ? 'x9k2...o6p9' : '0x9f...a2'}</div>
+             <div className={`text-xs font-mono font-bold ${isUnverified ? 'text-amber-400' : 'text-red-400'}`}>
+               {isUnverified ? 'NO PROOF FOUND' : 'MATCH: FAILED'}
+             </div>
           </div>
         </div>
 
-        {/* The Original */}
+        {/* The Original/Registry */}
         <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/10 relative">
-          <div className="absolute top-2 right-2 bg-emerald-500 text-black text-[10px] font-bold px-2 py-0.5 rounded">SOLANA VERIFIED</div>
+          <div className="absolute top-2 right-2 bg-emerald-500 text-black text-[10px] font-bold px-2 py-0.5 rounded">SOLANA REGISTRY</div>
           <div className="w-full h-32 bg-slate-800 rounded-lg flex items-center justify-center border border-white/5">
             <Activity className="text-emerald-500" size={32} />
           </div>
@@ -113,81 +95,31 @@ export const ActiveDefense: React.FC<ActiveDefenseProps> = ({ alert, identity, o
         </div>
       </div>
 
-      {/* Solana Verification Result */}
-      {solanaVerification && (
-        <GlassCard className={`${solanaVerification.verified ? 'bg-emerald-950/20 border-emerald-500/20' : 'bg-red-950/20 border-red-500/20'}`}>
-          <div className="flex items-start gap-3">
-            {solanaVerification.verified ? (
-              <CheckCircle className="text-emerald-400 flex-shrink-0" size={16} />
-            ) : (
-              <XCircle className="text-red-400 flex-shrink-0" size={16} />
-            )}
-            <div className="flex-1">
-              <h4 className={`text-sm font-semibold mb-1 ${solanaVerification.verified ? 'text-emerald-200' : 'text-red-200'}`}>
-                {solanaVerification.verified ? 'Solana Proof Verified' : 'Solana Proof Mismatch'}
-              </h4>
-              <p className={`text-xs ${solanaVerification.verified ? 'text-emerald-200/70' : 'text-red-200/70'}`}>
-                {solanaVerification.verified 
-                  ? 'Face identity matches registered proof on Solana blockchain.'
-                  : solanaVerification.mismatch 
-                    ? `Face identity found on Solana, but ${solanaVerification.mismatch.field} mismatch detected. This confirms unauthorized manipulation.`
-                    : 'Face identity not found on Solana blockchain.'}
-              </p>
-              {solanaVerification.txHash && (
-                <a
-                  href={`https://explorer.solana.com/tx/${solanaVerification.txHash}?cluster=devnet`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-purple-400 hover:text-purple-300 mt-2 inline-flex items-center gap-1"
-                >
-                  View on Solana Explorer
-                  <ExternalLink size={12} />
-                </a>
-              )}
-            </div>
-          </div>
-        </GlassCard>
-      )}
-
-      {certificate && (
-        <GlassCard className="bg-red-950/20 border-red-500/20">
-          <h4 className="text-red-200 text-sm font-semibold mb-2 flex items-center gap-2">
-            <FileText size={14} /> Certificate of Inauthenticity
+      {isUnverified ? (
+        <GlassCard className="bg-amber-950/20 border-amber-500/20">
+          <h4 className="text-amber-200 text-sm font-semibold mb-1 flex items-center gap-2">
+              <AlertCircle size={14} /> No Proof Found on Solana
           </h4>
-          <div className="text-xs text-red-200/70 space-y-2 mb-3">
-            <p>{certificate.mismatchNotice}</p>
-            <a
-              href={certificate.txLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-purple-400 hover:text-purple-300 inline-flex items-center gap-1"
-            >
-              View Original Proof on Solana
-              <ExternalLink size={12} />
-            </a>
-          </div>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(certificate.certificate);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-            className="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-white flex items-center gap-2"
-          >
-            {copied ? <CheckCircle size={12} /> : <Copy size={12} />}
-            {copied ? 'Copied' : 'Copy Certificate'}
-          </button>
+          <p className="text-xs text-amber-200/70">
+            This image has not been registered on the Human Origin Registry. Shield this image on Solana to protect it from future deepfake impersonation.
+          </p>
+          {verifyingSolana && (
+            <div className="mt-3 text-xs text-amber-300">Verifying on Solana...</div>
+          )}
+          {solanaVerification === null && !verifyingSolana && (
+            <div className="mt-3 text-xs text-amber-300">No matching proof found in registry.</div>
+          )}
+        </GlassCard>
+      ) : (
+        <GlassCard className="bg-red-950/20 border-red-500/20">
+          <h4 className="text-red-200 text-sm font-semibold mb-1 flex items-center gap-2">
+              <XCircle size={14} /> Verification Hash Mismatch
+          </h4>
+          <p className="text-xs text-red-200/70">
+            The detected video lacks the cryptographic signature associated with your biometrics. This is a confirmed unauthorized generation.
+          </p>
         </GlassCard>
       )}
-
-      <GlassCard className="bg-red-950/20 border-red-500/20">
-        <h4 className="text-red-200 text-sm font-semibold mb-1 flex items-center gap-2">
-            <XCircle size={14} /> Verification Hash Mismatch
-        </h4>
-        <p className="text-xs text-red-200/70">
-          The detected video lacks the cryptographic signature associated with your biometrics. This is a confirmed unauthorized generation.
-        </p>
-      </GlassCard>
 
       <motion.button
         whileHover={{ scale: 1.02 }}
@@ -299,8 +231,8 @@ export const ActiveDefense: React.FC<ActiveDefenseProps> = ({ alert, identity, o
 
       <div className="grid grid-cols-1 gap-3">
           <a 
-            href="https://www.tiktok.com/legal/report/privacy"
-            target="_blank"
+            href="https://www.tiktok.com/legal/report/privacy" 
+            target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors group"
           >
@@ -315,8 +247,8 @@ export const ActiveDefense: React.FC<ActiveDefenseProps> = ({ alert, identity, o
           </a>
 
           <a 
-            href="https://help.instagram.com/165828726894770"
-            target="_blank"
+            href="https://help.instagram.com/165828726894770" 
+            target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors group"
           >
@@ -334,34 +266,7 @@ export const ActiveDefense: React.FC<ActiveDefenseProps> = ({ alert, identity, o
       <div className="my-6 border-t border-white/10"></div>
 
       <h4 className="text-sm font-medium text-white mb-3">Social Proof Defense</h4>
-      <button
-        onClick={() => {
-          // Generate shareable verification card
-          const verificationCard = {
-            title: `Identity Verification: ${identity.name}`,
-            message: `This is a verified identity protected by CreativeArmor. The content at ${alert.platform} is an unauthorized deepfake.`,
-            url: window.location.href,
-          };
-          
-          // Try Web Share API first
-          if (navigator.share) {
-            navigator.share({
-              title: verificationCard.title,
-              text: verificationCard.message,
-              url: verificationCard.url,
-            }).catch(() => {
-              // Fallback to clipboard
-              navigator.clipboard.writeText(`${verificationCard.title}\n\n${verificationCard.message}\n\n${verificationCard.url}`);
-              alert('Verification card copied to clipboard!');
-            });
-          } else {
-            // Fallback to clipboard
-            navigator.clipboard.writeText(`${verificationCard.title}\n\n${verificationCard.message}\n\n${verificationCard.url}`);
-            alert('Verification card copied to clipboard! Share it on your social media.');
-          }
-        }}
-        className="w-full glass-panel bg-indigo-900/20 border-indigo-500/30 flex items-center justify-between group cursor-pointer hover:bg-indigo-900/30 transition-colors p-4 rounded-xl"
-      >
+      <GlassCard className="bg-indigo-900/20 border-indigo-500/30 flex items-center justify-between group cursor-pointer" hoverEffect onClick={onClose}>
         <div>
             <div className="text-indigo-200 font-medium text-sm flex items-center gap-2">
                 <Share2 size={14} />
@@ -374,7 +279,7 @@ export const ActiveDefense: React.FC<ActiveDefenseProps> = ({ alert, identity, o
         <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white">
             <ExternalLink size={14} />
         </div>
-      </button>
+      </GlassCard>
 
       <div className="pt-4 flex justify-center">
         <button onClick={onClose} className="text-sm text-slate-500 hover:text-white transition-colors">

@@ -8,22 +8,35 @@ export const MOCK_IDENTITY: IdentityRecord = {
   trustScore: 98,
 };
 
-// Note: Replace these image URLs with actual images of the Pope in Balenciaga puffer jacket
 export const RECENT_ALERTS: Alert[] = [
   {
     id: "AL-8821",
     platform: "TikTok",
-    thumbnailUrl: "https://via.placeholder.com/400x400/1e293b/ffffff?text=Pope+in+Balenciaga+Puffer",
-    detectedAt: "2 mins ago",
-    confidence: 99.2,
+    source: "Google Deepfake Detection",
+    detectedLocation: "https://tiktok.com/@fakeuser/video/123456",
+    thumbnailUrl: "https://via.placeholder.com/400x400/1e293b/ffffff?text=Elena+Deepfake+TikTok",
+    detectedAt: "5 mins ago",
+    confidence: 94.5,
     status: "active",
   },
   {
     id: "AL-8820",
+    platform: "Reddit",
+    source: "Google Deepfake Detection",
+    detectedLocation: "https://reddit.com/r/fakeimages/post/789",
+    thumbnailUrl: "https://via.placeholder.com/400x400/1e293b/ffffff?text=Elena+Deepfake+Reddit",
+    detectedAt: "2 hours ago",
+    confidence: 87.2,
+    status: "active",
+  },
+  {
+    id: "AL-8819",
     platform: "Instagram",
-    thumbnailUrl: "https://via.placeholder.com/400x400/1e293b/ffffff?text=Pope+in+Balenciaga+Puffer",
-    detectedAt: "4 hours ago",
-    confidence: 87.5,
+    source: "Google Deepfake Detection",
+    detectedLocation: "https://instagram.com/p/fake123",
+    thumbnailUrl: "https://via.placeholder.com/400x400/1e293b/ffffff?text=Elena+Deepfake+Instagram",
+    detectedAt: "6 hours ago",
+    confidence: 91.8,
     status: "resolved",
   },
 ];

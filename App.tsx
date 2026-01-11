@@ -8,31 +8,15 @@ import { ActiveDefense } from './components/ActiveDefense';
 import { Ledger } from './components/Ledger';
 import { Protection } from './components/Protection';
 import { Settings } from './components/Settings';
+import { ModerationDashboard } from './components/ModerationDashboard';
 import { ViewState, Alert } from './types';
-import { MOCK_IDENTITY, RECENT_ALERTS } from './constants';
+import { MOCK_IDENTITY } from './constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('landing');
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
-  const [recentAlerts, setRecentAlerts] = useState<Alert[]>(RECENT_ALERTS);
-
-  const handleScanComplete = () => {
-    setView('dashboard');
-  };
-
-  const handleAlertClick = (alert: Alert) => {
-    setSelectedAlert(alert);
-    // Don't change view state fully, just overlay ActiveDefense
-  };
-
-  const handleCloseDefense = () => {
-    setSelectedAlert(null);
-  };
-
-  const handleNewAlert = (alert: Alert) => {
-    setRecentAlerts(prev => [alert, ...prev]);
-  };
+  const [recentAlerts, setRecentAlerts] = useState<Alert[]>([]);
 
   const handleSignUp = () => {
     setView('login');
@@ -42,10 +26,32 @@ export default function App() {
     setView('onboarding');
   };
 
+  const handleScanComplete = () => {
+    setView('dashboard');
+  };
+
+  const handleAlertClick = (alert: Alert) => {
+    setSelectedAlert(alert);
+  };
+
+  const handleCloseDefense = () => {
+    setSelectedAlert(null);
+  };
+
+  const handleNavigate = (newView: ViewState) => {
+    setView(newView);
+  };
+
+  const handleLogout = () => {
+    setView('landing');
+    setRecentAlerts([]);
+    setSelectedAlert(null);
+  };
+
   const renderContent = () => {
     switch (view) {
       case 'landing':
-        return <Landing onSignUp={handleSignUp} onLogin={() => setView('login')} />;
+        return <Landing onSignUp={handleSignUp} onLogin={handleSignUp} />;
 
       case 'login':
         return <Login onLogin={handleLogin} />;
@@ -105,44 +111,23 @@ export default function App() {
             <Dashboard 
               identity={MOCK_IDENTITY} 
               onAlertClick={handleAlertClick}
-              onNewAlert={handleNewAlert}
               recentAlerts={recentAlerts}
+              setRecentAlerts={setRecentAlerts}
             />
           </motion.div>
         );
 
       case 'ledger':
-        return (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Ledger onBack={() => setView('dashboard')} />
-          </motion.div>
-        );
+        return <Ledger onBack={() => setView('dashboard')} />;
 
       case 'protection':
-        return (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Protection onBack={() => setView('dashboard')} />
-          </motion.div>
-        );
+        return <Protection onBack={() => setView('dashboard')} />;
 
       case 'settings':
-        return (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Settings onBack={() => setView('dashboard')} />
-          </motion.div>
-        );
+        return <Settings onBack={() => setView('dashboard')} />;
+
+      case 'moderation':
+        return <ModerationDashboard onBack={() => setView('dashboard')} />;
 
       default:
         return null;
@@ -150,7 +135,7 @@ export default function App() {
   };
 
   return (
-    <Layout view={view} onReset={() => setView('landing')} onNavigate={setView}>
+    <Layout view={view} onNavigate={handleNavigate} onLogout={handleLogout} onReset={() => setView('landing')}>
       <AnimatePresence mode="wait">
         {renderContent()}
       </AnimatePresence>

@@ -33,7 +33,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         transition={{ duration: 0.8 }}
         className="relative z-10 w-full max-w-md"
       >
-        {/* AI Elena Image */}
+        {/* AI Pope Image */}
         <div className="mb-8 flex justify-center">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -41,7 +41,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             transition={{ delay: 0.2, duration: 0.6 }}
             className="relative w-48 h-48 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl"
           >
-            {/* Replace this src with your AI Elena image URL */}
+            {/* Replace this src with your AI Pope image URL */}
             <img
               src="https://via.placeholder.com/400x400/334155/ffffff?text=AI+Elena+Image"
               alt="AI Elena"

@@ -1,110 +1,101 @@
 import React from 'react';
 import { GlassCard } from './GlassCard';
-import { Shield, Lock, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Shield, AlertTriangle, Lock, CheckCircle, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ProtectionProps {
-  onBack?: () => void;
+  onBack: () => void;
 }
 
 export const Protection: React.FC<ProtectionProps> = ({ onBack }) => {
   return (
     <div className="w-full max-w-4xl mx-auto pb-12">
+      <motion.button
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={onBack}
+        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+      >
+        <ArrowLeft size={18} />
+        Back to Dashboard
+      </motion.button>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="space-y-6"
       >
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span className="text-sm">Back to Dashboard</span>
-          </button>
-        )}
-        <h1 className="text-3xl font-light text-white mb-2">Protection Settings</h1>
-        <p className="text-slate-400">Configure your active defense preferences</p>
-      </motion.div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <GlassCard>
+        <GlassCard delay={0.1}>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <Shield className="text-blue-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Auto-Defense</h3>
+            <Shield className="text-indigo-400" size={24} />
+            <h2 className="text-2xl font-light text-white">Active Protection</h2>
           </div>
-          <p className="text-sm text-slate-400 mb-4">
-            Automatically activate defense when deepfakes are detected
+          <p className="text-sm text-slate-400 mb-6">
+            Configure your protection settings and monitoring preferences.
           </p>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-300">Enabled</span>
-            <div className="w-12 h-6 bg-blue-500 rounded-full relative">
-              <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-            </div>
-          </div>
-        </GlassCard>
 
-        <GlassCard>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <AlertTriangle className="text-indigo-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Alert Threshold</h3>
-          </div>
-          <p className="text-sm text-slate-400 mb-4">
-            Minimum confidence score to trigger alerts
-          </p>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-300">85%</span>
-            <input 
-              type="range" 
-              min="50" 
-              max="100" 
-              defaultValue="85"
-              className="flex-1 ml-4"
-            />
-          </div>
-        </GlassCard>
-
-        <GlassCard>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Lock className="text-emerald-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Platform Monitoring</h3>
-          </div>
-          <div className="space-y-3">
-            {['TikTok', 'Instagram', 'YouTube', 'X (Twitter)'].map((platform) => (
-              <div key={platform} className="flex items-center justify-between">
-                <span className="text-sm text-slate-300">{platform}</span>
-                <CheckCircle className="text-emerald-400" size={16} />
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="text-emerald-400" size={18} />
+                <span className="text-sm font-medium text-white">Defense Active</span>
               </div>
-            ))}
-          </div>
-        </GlassCard>
+              <p className="text-xs text-slate-400">Your identity is protected and monitored 24/7</p>
+            </div>
 
-        <GlassCard>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-              <CheckCircle className="text-purple-400" size={20} />
+            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="text-amber-400" size={18} />
+                <span className="text-sm font-medium text-white">Alert Threshold</span>
+              </div>
+              <p className="text-xs text-slate-400 mb-3">Minimum confidence score to trigger alerts</p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-300">85%</span>
+                <input 
+                  type="range" 
+                  min="50" 
+                  max="100" 
+                  defaultValue="85"
+                  className="flex-1 ml-4"
+                />
+              </div>
             </div>
-            <h3 className="text-lg font-light text-white">DMCA Auto-Submit</h3>
-          </div>
-          <p className="text-sm text-slate-400 mb-4">
-            Automatically submit DMCA notices when defense is activated
-          </p>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-300">Manual Review</span>
-            <div className="w-12 h-6 bg-slate-700 rounded-full relative">
-              <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+
+            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+              <div className="flex items-center gap-2 mb-3">
+                <Search className="text-blue-400" size={18} />
+                <span className="text-sm font-medium text-white">Google Deepfake Detection</span>
+              </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-300">Web Scanning</span>
+                  <CheckCircle className="text-emerald-400" size={16} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-300">AI Image Detection</span>
+                  <CheckCircle className="text-emerald-400" size={16} />
+                </div>
+                <div className="text-xs text-slate-500 mt-2">Scanning TikTok, Instagram, Reddit, and web platforms</div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+              <div className="flex items-center gap-2 mb-3">
+                <Lock className="text-emerald-400" size={18} />
+                <span className="text-sm font-medium text-white">Platform Monitoring</span>
+              </div>
+              <div className="space-y-2">
+                {['TikTok', 'Instagram', 'Reddit', 'YouTube', 'X (Twitter)'].map((platform) => (
+                  <div key={platform} className="flex items-center justify-between">
+                    <span className="text-sm text-slate-300">{platform}</span>
+                    <CheckCircle className="text-emerald-400" size={16} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </GlassCard>
-      </div>
+      </motion.div>
     </div>
   );
 };
-

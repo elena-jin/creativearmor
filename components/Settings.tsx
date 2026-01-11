@@ -1,119 +1,107 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GlassCard } from './GlassCard';
-import { User, Bell, Key, Database, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, User, Mail, Bell, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface SettingsProps {
-  onBack?: () => void;
+  onBack: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
+  const [name, setName] = useState('Elena');
+  const [email, setEmail] = useState('elena@example.com');
+  const [notifications, setNotifications] = useState(true);
+
   return (
     <div className="w-full max-w-4xl mx-auto pb-12">
+      <motion.button
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={onBack}
+        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+      >
+        <ArrowLeft size={18} />
+        Back to Dashboard
+      </motion.button>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="space-y-6"
       >
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span className="text-sm">Back to Dashboard</span>
-          </button>
-        )}
-        <h1 className="text-3xl font-light text-white mb-2">Settings</h1>
-        <p className="text-slate-400">Manage your account and preferences</p>
-      </motion.div>
-
-      <div className="space-y-6">
-        <GlassCard>
+        <GlassCard delay={0.1}>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <User className="text-blue-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Profile</h3>
+            <User className="text-indigo-400" size={24} />
+            <h2 className="text-2xl font-light text-white">Profile Settings</h2>
           </div>
+
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-2">Name</label>
-              <input 
-                type="text" 
-                defaultValue="Elena"
-                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+              <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">Full Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-indigo-500/50 transition-colors"
               />
             </div>
+
             <div>
-              <label className="block text-sm text-slate-300 mb-2">Email</label>
-              <input 
-                type="email" 
-                defaultValue="elena@example.com"
-                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+              <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-indigo-500/50 transition-colors"
               />
             </div>
           </div>
         </GlassCard>
 
-        <GlassCard>
+        <GlassCard delay={0.2}>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <Bell className="text-indigo-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Notifications</h3>
+            <Bell className="text-indigo-400" size={24} />
+            <h2 className="text-2xl font-light text-white">Notifications</h2>
           </div>
+
           <div className="space-y-4">
-            {[
-              { label: 'Email Alerts', enabled: true },
-              { label: 'Push Notifications', enabled: false },
-              { label: 'SMS Alerts', enabled: false },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between">
-                <span className="text-sm text-slate-300">{item.label}</span>
-                <div className={`w-12 h-6 rounded-full relative ${item.enabled ? 'bg-blue-500' : 'bg-slate-700'}`}>
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${item.enabled ? 'right-1' : 'left-1'}`}></div>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-white font-medium">Email Notifications</div>
+                <div className="text-xs text-slate-400">Receive alerts via email</div>
               </div>
-            ))}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notifications}
+                  onChange={(e) => setNotifications(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
           </div>
         </GlassCard>
 
-        <GlassCard>
+        <GlassCard delay={0.3}>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Key className="text-emerald-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Security</h3>
+            <Shield className="text-emerald-400" size={24} />
+            <h2 className="text-2xl font-light text-white">Security</h2>
           </div>
-          <div className="space-y-4">
-            <button className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/10 transition-colors">
-              Change Password
-            </button>
-            <button className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/10 transition-colors">
-              Enable 2FA
-            </button>
-          </div>
-        </GlassCard>
 
-        <GlassCard>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-              <Database className="text-purple-400" size={20} />
-            </div>
-            <h3 className="text-lg font-light text-white">Data & Privacy</h3>
-          </div>
           <div className="space-y-4">
-            <button className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/10 transition-colors text-left">
-              Export Data
-            </button>
-            <button className="w-full px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm hover:bg-red-500/20 transition-colors text-left">
-              Delete Account
-            </button>
+            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+              <div className="text-sm text-white font-medium mb-1">Biometric Authentication</div>
+              <div className="text-xs text-slate-400">Enabled • Last verified: Just now</div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+              <div className="text-sm text-white font-medium mb-1">Solana Wallet</div>
+              <div className="text-xs text-slate-400 font-mono">Not connected</div>
+            </div>
           </div>
         </GlassCard>
-      </div>
+      </motion.div>
     </div>
   );
 };
-
